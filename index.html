@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Логика: кристалл и платформы</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        /* ================== ОБЩИЙ СТИЛЬ ================== */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(circle at top, #2020aa 0, #050563 45%, #020229 100%);
+            color: #ffec9e;
+        }
+
+        .game-root {
+            max-width: 960px;
+            margin: 16px auto;
+            padding: 12px 16px 24px;
+            box-sizing: border-box;
+        }
+
+        /* ================== ВЕРХНЯЯ ПАНЕЛЬ ================== */
+        .top-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            align-items: center;
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+
+        .top-label {
+            text-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+        }
+
+        .top-label .value {
+            font-weight: 700;
+            margin-left: 4px;
+        }
+
+        .crystals-strip {
+            display: inline-flex;
+            margin-left: 8px;
+        }
+
+        .crystal-icon {
+            font-size: 20px;
+            margin-left: 2px;
+        }
+
+        /* ================== ДОСКА И ВХОДЫ ================== */
+        .board {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .left-panel {
+            width: 80px;
+            padding-top: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-switch {
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
+        }
+
+        .switch-cap {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: radial-gradient(circle at 30% 30%, #ffffff 0, #d8d8d8 40%, #888888 70%, #555555 100%);
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+            border: 2px solid #999999;
+            transition: box-shadow 0.18s, border-color 0.18s, transform 0.06s;
+        }
+
+        .input-switch.on .switch-cap {
+            border-color: #8cf28c;
+            box-shadow: 0 0 12px rgba(120, 255, 120, 0.95);
+            transform: translateY(-1px);
+        }
+
+        .switch-label {
+            color: #ffffff;
+            font-weight: 600;
+            text-shadow: 0 0 4px #000000;
+        }
+
+        /* ================== ПОЛЕ ЛОГИКИ И ПЛАТФОРМ ================== */
+        .circuit-panel {
+            flex: 1;
+            background: rgba(0, 0, 80, 0.7);
+            border-radius: 18px;
+            padding: 12px 16px 24px;
+            position: relative;
+            box-shadow: 0 0 18px rgba(0, 0, 0, 0.65);
+        }
+
+        #rowsContainer {
+            position: relative;
+        }
+
+        .circuit-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 14px 0;
+        }
+
+        /* Провода */
+        .wire {
+            flex: 1;
+            height: 8px;
+            border-radius: 999px;
+            background: repeating-linear-gradient(
+                    90deg,
+                    #ffffff 0,
+                    #ffffff 6px,
+                    #1aff5f 6px,
+                    #1aff5f 12px
+            );
+            opacity: 0.25;
+            box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wire.energized {
+            opacity: 1;
+            animation: wire-flow 0.6s linear infinite;
+        }
+
+        @keyframes wire-flow {
+            from {
+                background-position-x: 0;
+            }
+            to {
+                background-position-x: 24px;
+            }
+        }
+
+        /* Логические блоки */
+        .gate {
+            min-width: 80px;
+            padding: 4px 6px;
+            border-radius: 8px;
+            background: linear-gradient(#ffe66b, #ffce45);
+            color: #222222;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+            border: 1px solid #caa52a;
+        }
+
+        /* Платформы */
+        .platform {
+            width: 150px;
+        }
+
+        .platform-track {
+            position: relative;
+            width: 100%;
+            height: 18px;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #707070, #bfbfbf);
+            box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+        }
+
+        .platform-slider {
+            position: absolute;
+            right: -100px;
+            top: 0;
+            width: 100px;
+            height: 18px;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #d3d4db, #ff6666);
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.85);
+            transition: right 0.35s ease-out;
+        }
+
+        .platform.extended .platform-slider {
+            right: 0;
+        }
+
+        .platform.retracted .platform-slider {
+            right: -100px;
+        }
+
+        /* Кристалл */
+        .crystal {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            left: calc(100% - 32px);
+            top: 0;
+            transform: translateY(-50%);
+            background: radial-gradient(circle at 30% 30%, #ffffff 0, #aaf7ff 40%, #00a9ff 70%, #004c92 100%);
+            clip-path: polygon(50% 0%, 90% 35%, 70% 100%, 30% 100%, 10% 35%);
+            box-shadow: 0 0 14px rgba(0, 255, 255, 0.9);
+            transition: top 0.6s ease-in;
+            pointer-events: none;
+        }
+
+        .crystal.crash {
+            box-shadow: 0 0 14px rgba(255, 80, 80, 0.95);
+            filter: hue-rotate(-40deg);
+        }
+
+        /* ================== КНОПКИ И ПОДПИСИ ================== */
+        .bottom-bar {
+            margin-top: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .bottom-bar button {
+            flex: 0 0 auto;
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+            background: linear-gradient(#ffdd77, #ffb433);
+            color: #222;
+            text-transform: uppercase;
+        }
+
+        .bottom-bar button.secondary {
+            background: linear-gradient(#9ca3af, #6b7280);
+            color: #111827;
+        }
+
+        .bottom-bar button:disabled {
+            opacity: 0.55;
+            cursor: default;
+            box-shadow: none;
+        }
+
+        .hint {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #f1f5f9;
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+        }
+
+        @media (max-width: 720px) {
+            .board {
+                flex-direction: column;
+            }
+            .left-panel {
+                flex-direction: row;
+                width: auto;
+                padding-top: 8px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="game-root">
+    <!-- Верхняя строка: уровень, счёт, жизни -->
+    <div class="top-bar">
+        <div class="top-label">
+            Уровень <span class="value" id="levelNumber">1</span>
+        </div>
+        <div class="top-label">
+            Счёт <span class="value" id="scoreValue">1000</span>
+        </div>
+        <div class="top-label">
+            Кристаллы
+            <span class="crystals-strip" id="crystals"></span>
+        </div>
+    </div>
+
+    <!-- Основное поле: входы и логические линии с платформами -->
+    <div class="board">
+        <div class="left-panel">
+            <div class="input-switch" data-input="A">
+                <div class="switch-cap"></div>
+                <div class="switch-label">A</div>
+            </div>
+            <div class="input-switch" data-input="B">
+                <div class="switch-cap"></div>
+                <div class="switch-label">B</div>
+            </div>
+            <div class="input-switch" data-input="C">
+                <div class="switch-cap"></div>
+                <div class="switch-label">C</div>
+            </div>
+            <div class="input-switch" data-input="D">
+                <div class="switch-cap"></div>
+                <div class="switch-label">D</div>
+            </div>
+        </div>
+
+        <div class="circuit-panel" id="circuitPanel">
+            <div id="rowsContainer"></div>
+            <div id="crystal" class="crystal"></div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <button id="runButton">Подать ток</button>
+        <button id="resetButton" class="secondary">Сбросить игру</button>
+    </div>
+    <div class="hint" id="hintText">
+        Настрой входы A, B, C, D так, чтобы при подаче тока кристалл падал строго на следующую платформу. Если он
+        пролетит мимо соседней платформы или не поймается — разбивается.
+    </div>
+</div>
+
+<!-- Telegram WebApp SDK (по желанию для интеграции с ботом) -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<script>
+    // ================== ОПИСАНИЕ УРОВНЕЙ ==================
+    // Для каждого уровня задаём логические выражения для 4 платформ.
+    // row.compute получает объект вида {A: true/false, B: ..., C: ..., D: ...}
+    const LEVELS = [
+        {
+            name: "Уровень 1",
+            hint: "Простейшие входы A и B. Используй их, чтобы по очереди сдвигать платформы.",
+            rows: [
+                {label: "A", compute: s => s.A},
+                {label: "НЕ A", compute: s => !s.A},
+                {label: "B", compute: s => s.B},
+                {label: "НЕ B", compute: s => !s.B}
+            ]
+        },
+        {
+            name: "Уровень 2",
+            hint: "Используем И и ИЛИ для двух входов.",
+            rows: [
+                {label: "A И B", compute: s => s.A && s.B},
+                {label: "НЕ (A И B)", compute: s => !(s.A && s.B)},
+                {label: "A ИЛИ B", compute: s => s.A || s.B},
+                {label: "НЕ (A ИЛИ B)", compute: s => !(s.A || s.B)}
+            ]
+        },
+        {
+            name: "Уровень 3",
+            hint: "Вводим третий вход C. Попробуй поиграть с НЕ.",
+            rows: [
+                {label: "A И НЕ B", compute: s => s.A && !s.B},
+                {label: "НЕ (A И НЕ B)", compute: s => !(s.A && !s.B)},
+                {label: "C", compute: s => s.C},
+                {label: "НЕ C", compute: s => !s.C}
+            ]
+        },
+        {
+            name: "Уровень 4",
+            hint: "Комбинации A, B и C с И и ИЛИ.",
+            rows: [
+                {label: "A ИЛИ C", compute: s => s.A || s.C},
+                {label: "НЕ (A ИЛИ C)", compute: s => !(s.A || s.C)},
+                {label: "B И C", compute: s => s.B && s.C},
+                {label: "НЕ (B И C)", compute: s => !(s.B && s.C)}
+            ]
+        },
+        {
+            name: "Уровень 5",
+            hint: "Подключаем сразу четыре входа.",
+            rows: [
+                {label: "A И B", compute: s => s.A && s.B},
+                {label: "НЕ (A И B)", compute: s => !(s.A && s.B)},
+                {label: "C И D", compute: s => s.C && s.D},
+                {label: "НЕ (C И D)", compute: s => !(s.C && s.D)}
+            ]
+        },
+        {
+            name: "Уровень 6",
+            hint: "Играем с исключающим ИЛИ для A и B.",
+            rows: [
+                {
+                    label: "A XOR B",
+                    compute: s => (s.A && !s.B) || (!s.A && s.B)
+                },
+                {
+                    label: "НЕ (A XOR B)",
+                    compute: s => !((s.A && !s.B) || (!s.A && s.B))
+                },
+                {label: "C", compute: s => s.C},
+                {label: "НЕ C", compute: s => !s.C}
+            ]
+        },
+        {
+            name: "Уровень 7",
+            hint: "Совмещаем НЕ и ИЛИ с четырьмя входами.",
+            rows: [
+                {label: "A И НЕ C", compute: s => s.A && !s.C},
+                {label: "НЕ (A И НЕ C)", compute: s => !(s.A && !s.C)},
+                {label: "B ИЛИ D", compute: s => s.B || s.D},
+                {label: "НЕ (B ИЛИ D)", compute: s => !(s.B || s.D)}
+            ]
+        },
+        {
+            name: "Уровень 8",
+            hint: "Попробуй добиться нужной комбинации из !A и B, C и D.",
+            rows: [
+                {label: "НЕ A И B", compute: s => !s.A && s.B},
+                {label: "НЕ (НЕ A И B)", compute: s => !(!s.A && s.B)},
+                {label: "C ИЛИ D", compute: s => s.C || s.D},
+                {label: "НЕ (C ИЛИ D)", compute: s => !(s.C || s.D)}
+            ]
+        },
+        {
+            name: "Уровень 9",
+            hint: "Сразу три входа в И и ещё один через ИЛИ.",
+            rows: [
+                {label: "A И B И C", compute: s => s.A && s.B && s.C},
+                {label: "НЕ (A И B И C)", compute: s => !(s.A && s.B && s.C)},
+                {label: "B ИЛИ D", compute: s => s.B || s.D},
+                {label: "НЕ (B ИЛИ D)", compute: s => !(s.B || s.D)}
+            ]
+        },
+        {
+            name: "Уровень 10",
+            hint: "Финальный уровень с более сложными выражениями.",
+            rows: [
+                {label: "A И НЕ B И C", compute: s => s.A && !s.B && s.C},
+                {label: "НЕ (A И НЕ B И C)", compute: s => !(s.A && !s.B && s.C)},
+                {
+                    label: "(C ИЛИ D) И НЕ A",
+                    compute: s => (s.C || s.D) && !s.A
+                },
+                {
+                    label: "НЕ((C ИЛИ D) И НЕ A)",
+                    compute: s => !((s.C || s.D) && !s.A)
+                }
+            ]
+        }
+    ];
+
+    // ================== СОСТОЯНИЕ ИГРЫ ==================
+    let levelIndex = 0;
+    let lives = 4;
+    let score = 1000;
+    let scoreTimer = null;
+    let currentRow = 0;
+    let isAnimating = false;
+
+    const inputState = {A: false, B: false, C: false, D: false};
+
+    let levelNumberEl, scoreValueEl, crystalsEl, hintTextEl;
+    let runBtn, resetBtn, circuitPanel, rowsContainer, crystalEl;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        levelNumberEl = document.getElementById("levelNumber");
+        scoreValueEl = document.getElementById("scoreValue");
+        crystalsEl = document.getElementById("crystals");
+        hintTextEl = document.getElementById("hintText");
+        runBtn = document.getElementById("runButton");
+        resetBtn = document.getElementById("resetButton");
+        circuitPanel = document.getElementById("circuitPanel");
+        rowsContainer = document.getElementById("rowsContainer");
+        crystalEl = document.getElementById("crystal");
+
+        setupSwitches();
+
+        runBtn.addEventListener("click", () => {
+            if (isAnimating) return;
+            const level = LEVELS[levelIndex];
+            const states = level.rows.map(row => !!row.compute(inputState));
+            animateWiresAndPlatforms(states);
+        });
+
+        resetBtn.addEventListener("click", () => {
+            stopScoreTimer();
+            runBtn.disabled = false;
+            startGame();
+        });
+
+        startGame();
+
+        // Если игра открыта как Telegram WebApp
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+        }
+    });
+
+    // ================== НАСТРОЙКА ВХОДОВ ==================
+    function setupSwitches() {
+        const switches = document.querySelectorAll(".input-switch");
+        switches.forEach(sw => {
+            const name = sw.dataset.input;
+            sw.addEventListener("click", () => {
+                inputState[name] = !inputState[name];
+                sw.classList.toggle("on", inputState[name]);
+            });
+        });
+    }
+
+    function resetInputs() {
+        for (const k of Object.keys(inputState)) {
+            inputState[k] = false;
+        }
+        document.querySelectorAll(".input-switch").forEach(sw => {
+            sw.classList.remove("on");
+        });
+    }
+
+    // ================== УПРАВЛЕНИЕ УРОВНЯМИ И СЧЁТОМ ==================
+    function startGame() {
+        lives = 4;
+        levelIndex = 0;
+        loadLevel(levelIndex);
+    }
+
+    function loadLevel(idx) {
+        const level = LEVELS[idx];
+        currentRow = 0;
+        resetInputs();
+        renderRowsForLevel(level);
+        updateUI();
+        startScoreTimer();
+        // Поставить кристалл на верхнюю платформу после отрисовки
+        setTimeout(() => {
+            positionCrystalAtRow(0, true);
+        }, 0);
+    }
+
+    function startScoreTimer() {
+        if (scoreTimer) clearInterval(scoreTimer);
+        score = 1000;
+        updateScore();
+        scoreTimer = setInterval(() => {
+            if (score > 0) {
+                score -= 1;
+                updateScore();
+            }
+        }, 1000);
+    }
+
+    function stopScoreTimer() {
+        if (scoreTimer) {
+            clearInterval(scoreTimer);
+            scoreTimer = null;
+        }
+    }
+
+    function updateScore() {
+        scoreValueEl.textContent = score.toString();
+    }
+
+    function updateUI() {
+        levelNumberEl.textContent = (levelIndex + 1).toString();
+        hintTextEl.textContent = LEVELS[levelIndex].hint;
+        renderCrystals();
+        updateScore();
+    }
+
+    function renderCrystals() {
+        const maxLives = 4;
+        crystalsEl.innerHTML = "";
+        for (let i = 0; i < maxLives; i++) {
+            const span = document.createElement("span");
+            span.className = "crystal-icon";
+            span.textContent = i < lives ? "💎" : "◇";
+            crystalsEl.appendChild(span);
+        }
+    }
+
+    // ================== ОТРИСОВКА СТРОК И ПОЗИЦИЯ КРИСТАЛЛА ==================
+    function renderRowsForLevel(level) {
+        rowsContainer.innerHTML = "";
+        level.rows.forEach((row, index) => {
+            const rowEl = document.createElement("div");
+            rowEl.className = "circuit-row";
+            rowEl.dataset.row = index.toString();
+
+            const wire = document.createElement("div");
+            wire.className = "wire";
+
+            const gate = document.createElement("div");
+            gate.className = "gate";
+            gate.textContent = row.label;
+
+            const platform = document.createElement("div");
+            platform.className = "platform retracted";
+            platform.dataset.row = index.toString();
+
+            const track = document.createElement("div");
+            track.className = "platform-track";
+
+            const slider = document.createElement("div");
+            slider.className = "platform-slider";
+
+            track.appendChild(slider);
+            platform.appendChild(track);
+
+            rowEl.appendChild(wire);
+            rowEl.appendChild(gate);
+            rowEl.appendChild(platform);
+
+            rowsContainer.appendChild(rowEl);
+        });
+    }
+
+    function getRowCenter(rowIndex) {
+        const rowEl = rowsContainer.querySelector(`.circuit-row[data-row="${rowIndex}"]`);
+        if (!rowEl) return 0;
+        const panelRect = circuitPanel.getBoundingClientRect();
+        const rowRect = rowEl.getBoundingClientRect();
+        return rowRect.top - panelRect.top + rowRect.height / 2;
+    }
+
+    function getGroundY() {
+        const panelRect = circuitPanel.getBoundingClientRect();
+        return panelRect.height + 24;
+    }
+
+    function positionCrystalAtRow(rowIndex, immediate) {
+        const top = getRowCenter(rowIndex);
+        if (immediate) {
+            crystalEl.style.transition = "none";
+            crystalEl.style.top = top + "px";
+            // force reflow
+            void crystalEl.offsetHeight;
+            crystalEl.style.transition = "top 0.6s ease-in";
+        } else {
+            crystalEl.style.top = top + "px";
+        }
+    }
+
+    // ================== АНИМАЦИЯ ТОКА И ПЛАТФОРМ ==================
+    function animateWiresAndPlatforms(states) {
+        const rows = rowsContainer.querySelectorAll(".circuit-row");
+        const delayPerRow = 200;
+        const wireActiveTime = 350;
+        isAnimating = true;
+
+        rows.forEach((rowEl, idx) => {
+            const wire = rowEl.querySelector(".wire");
+            const platform = rowEl.querySelector(".platform");
+            const isOn = states[idx];
+            const start = idx * delayPerRow;
+
+            setTimeout(() => {
+                wire.classList.add("energized");
+            }, start);
+
+            setTimeout(() => {
+                wire.classList.remove("energized");
+                platform.classList.toggle("extended", isOn);
+                platform.classList.toggle("retracted", !isOn);
+            }, start + wireActiveTime);
+        });
+
+        const totalDelay = rows.length * delayPerRow + wireActiveTime + 60;
+        setTimeout(() => {
+            resolveCrystal(states, () => {
+                isAnimating = false;
+            });
+        }, totalDelay);
+    }
+
+    // ================== ПАДЕНИЕ КРИСТАЛЛА ==================
+    function resolveCrystal(states, done) {
+        const level = LEVELS[levelIndex];
+        const rowsCount = level.rows.length;
+        const r = currentRow;
+
+        // Если платформа под кристаллом остаётся выдвинутой — он не падает
+        if (states[r]) {
+            done();
+            return;
+        }
+
+        const nextIndex = r + 1;
+        let firstOn = -1;
+        for (let i = nextIndex; i < rowsCount; i++) {
+            if (states[i]) {
+                firstOn = i;
+                break;
+            }
+        }
+
+        if (firstOn === nextIndex) {
+            const isLast = (firstOn === rowsCount - 1);
+            animateCrystalFallToRow(firstOn, isLast ? "win" : "safe", () => {
+                currentRow = firstOn;
+                done();
+            });
+        } else {
+            const targetRow = (firstOn !== -1 ? firstOn : null);
+            animateCrystalFallToRow(targetRow, "crash", () => {
+                handleCrash();
+                done();
+            });
+        }
+    }
+
+    function animateCrystalFallToRow(targetRowIndex, outcome, callback) {
+        let targetTop;
+        if (targetRowIndex === null) {
+            targetTop = getGroundY();
+        } else {
+            targetTop = getRowCenter(targetRowIndex);
+        }
+
+        if (outcome === "crash") {
+            crystalEl.classList.add("crash");
+        } else {
+            crystalEl.classList.remove("crash");
+        }
+
+        crystalEl.style.top = targetTop + "px";
+
+        const duration = 650;
+        setTimeout(() => {
+            if (outcome === "win") {
+                handleLevelCompleted();
+            }
+            if (outcome !== "crash") {
+                crystalEl.classList.remove("crash");
+            }
+            callback();
+        }, duration);
+    }
+
+    // ================== РЕЗУЛЬТАТЫ: ПРОИГРЫШ / ПОБЕДА ==================
+    function handleCrash() {
+        lives -= 1;
+        if (lives < 0) lives = 0;
+        renderCrystals();
+
+        if (lives <= 0) {
+            stopScoreTimer();
+            runBtn.disabled = true;
+            hintTextEl.textContent = "Кристалл разбился, кристаллы закончились. Игра окончена. Нажми «Сбросить игру», чтобы начать сначала.";
+        } else {
+            hintTextEl.textContent = "Кристалл разбился! Попробуй подобрать другую комбинацию входов на этом уровне.";
+            setTimeout(() => {
+                loadLevel(levelIndex);
+            }, 700);
+        }
+    }
+
+    function handleLevelCompleted() {
+        stopScoreTimer();
+        hintTextEl.textContent = "Уровень пройден! Кристалл прошёл все платформы.";
+        if (levelIndex < LEVELS.length - 1) {
+            levelIndex += 1;
+            setTimeout(() => {
+                loadLevel(levelIndex);
+            }, 900);
+        } else {
+            runBtn.disabled = true;
+            hintTextEl.textContent = "Поздравляем! Ты прошёл все уровни игры «Логика».";
+        }
+    }
+</script>
+</body>
+</html>
